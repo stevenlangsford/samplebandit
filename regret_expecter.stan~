@@ -1,0 +1,23 @@
+functions{
+  real features_to_value(vector features, vector weights){
+    return dot_product(features,weights); //ie weighted sum
+  }
+}
+data{
+  int n_features;
+  int n_options;
+  
+  int n_calcobs;
+  int calc_feature[n_calcobs];
+  int calc_value[n_calcobs];
+
+  int n_ordobs;
+  int ord1[n_ordobs];
+  int ord2[n_ordobs];
+  int ord_feature[n_ordobs];
+  real ord_value[n_ordobs];
+}
+parameters{
+  real value[n_options];
+  
+}
