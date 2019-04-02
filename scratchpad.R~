@@ -1,2 +1,48 @@
 library(tidyverse)
 library(rstan)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+theme_set(theme_light())
+
+#rm(list=ls())
+set.seed(1)
+
+##still devtesting: let's just get some estimates for one option and a given string of calc and ord obs.
+
+##stim setup
+n_trials <- 1 #current .stan is limited to one trial at a time! must be 1.
+n_options <- 3
+n_features <- 2
+
+##ppnt setup: stan is 'aware' of these, so they should match.
+calcobsnoise <- 0.5
+ordobsnoise <- 0.5 #Should be higher than calcnoise? By how much? Or possibly an err rate on a discrete var, howes style, if you like pain.
+
+getOption <- function(){
+    rnorm(n_features,0,1) #Fun to split up into different distributions for different features?
+}
+combineFeatures <- function(features){
+    return(features[1]+features[2]);#must match features_to_value in .stan model
+}
+
+stim.df <- data.frame()
+stimvalues.df <- data.frame();
+
+for(atrial in 1:n_trials){
+    for(anoption in 1:n_options){
+        stim.df <- rbind(stim.df,data.frame(value=getOption(),feature=1:n_features,option=anoption,trial=atrial));
+        stimvalues.df <- rbind(stimvalues.df,data.frame(trial=atrial,
+                                                        option=anoption,
+                                                        value=combineFeatures(tail(stim.df,2)$value)))
+    }
+}
+
+
+datalist <- list(n_features=n_features,n_options=n_options)
+
+fit <- stan(file="no_obs.stan",data=datalist,
+            iter=2000,
+            chains=4)
+
+samples <- as.data.frame(extract(fit,permuted=TRUE))
+

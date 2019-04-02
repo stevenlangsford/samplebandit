@@ -6,7 +6,7 @@ rstan_options(auto_write = TRUE)
 theme_set(theme_light())
 
 #rm(list=ls())
-set.seed(2)
+set.seed(4)
 
 ##stim setup
 n_trials <- 1 #current .stan is limited to one trial at a time! must be 1.
