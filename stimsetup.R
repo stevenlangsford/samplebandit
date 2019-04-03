@@ -35,3 +35,5 @@ for(atrial in 1:n_trials){
                                                         value=combineFeatures(tail(stim.df,2)$value)))
     }
 }
+
+print("Note stim setup set the seed.")

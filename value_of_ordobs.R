@@ -76,7 +76,7 @@ calcobs.df <- data.frame(); #not used for now: testing ordobs.
 ordobs.df <- data.frame();
 
 ##init to zero: special no-obs round just refers to priors. 
-datalist <- list(n_features=n_features,n_options=n_options)
+datalist <- list(n_features=n_features,n_options=n_options)xo
 
 fit <- stan(file="no_obs.stan",data=datalist,
             iter=2000,

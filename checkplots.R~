@@ -1,0 +1,12 @@
+check_values <- function(samples){#assumes stimvalues.df exists in the environment (created in stimsetup)
+estvals <- samples%>%select(starts_with("estval"))%>%gather(optionID,estval)
+return(
+    ggplot(estvals,aes(x=estval,color=optionID))+geom_density()+
+    geom_vline(data=stimvalues.df,aes(xintercept=value,color=paste0("estval.",option)))+ggtitle("Values")
+    )
+}
+
+check_features <- function(samples){
+features <- samples%>%select(starts_with("features."))%>%gather(id,est)%>%
+    mutate(option=sapply(id,function(x){as.numeric(substr(x,10,10))}),
+           feature=sapply(id,function(x){as.numeric(substr(x,12,12))}))
