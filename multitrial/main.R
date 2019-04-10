@@ -2,7 +2,7 @@ rm(list=ls())
 
 
 source("stim_setup/rnd_stimsetup.R") #everything here assumes stim.df exists, is visible in global env. stimsetup also loads libraries.
-#source("checkplots.R")
+                                        #source("checkplots.R")
 starttime <- Sys.time()
 
 ##add obs functions refer to stim.df, created in stimsetup.R & just left in the environment :-(
@@ -35,9 +35,9 @@ add_ordobs <- function(whichoption1=base::sample(1:3,1),
 
 imagine_calcobs <- function(samples,whichtrial,whichoption,whichfeature){
     return(data.frame(trial=whichtrial,
-               option=whichoption,
-               feature=whichfeature,
-               obs=base::sample(samples[,paste0("features.",whichtrial,".",whichoption,".",whichfeature)],1)))
+                      option=whichoption,
+                      feature=whichfeature,
+                      obs=base::sample(samples[,paste0("features.",whichtrial,".",whichoption,".",whichfeature)],1)))
 }
 
 imagine_ordobs <- function(samples,whichtrial,opt1,opt2,whichfeature){
@@ -54,8 +54,6 @@ batch_evi <- function(samples){
         expectation <- samples%>%select(starts_with(paste0("estval.",whichtrial)))%>%gather(id,value)%>%group_by(id)%>%summarize_all(mean)%>%arrange(desc(value))
         bestchoice <- expectation$id[1]%>%as.character
 
-#        browser()
-        
         est.df <- samples%>%select(starts_with(paste0("estval.",whichtrial)))
         est.df$max=sapply(1:nrow(est.df),function(i){max(est.df[i,])})#what's the tidyverse way? pmax needs named args, but the names change?
         est.df$chose <- est.df[,bestchoice]
@@ -63,12 +61,12 @@ batch_evi <- function(samples){
 
         ##    p_changemind <- 1-sum(est_confidence$regret==0)/nrow(est_confidence) #chance you have not chosen max:
 
-    return(-mean(est.df$regret)) #This expected-regret is the expected value of (perfect) information, right? (the value of 1-more-obs will be somewhat less!)   
-}
+        return(-mean(est.df$regret)) #This expected-regret is the expected value of (perfect) information, right? (the value of 1-more-obs will be somewhat less!)   
+    }
 
     return(
         data.frame(trial=1:max(stim.df$trial),evi=sapply(1:max(stim.df$trial),function(i){single_evi(samples,i)}))
-        )
+    )
 }
 
 batch_imagineobs <- function(samples,calcobs.df,ordobs.df){
@@ -84,21 +82,21 @@ batch_imagineobs <- function(samples,calcobs.df,ordobs.df){
 
     ##Can test one obs per trial each fit (trials assumed independent). So, cycle through each possible obs, applying that same imagined-obs to every trial at once, record the est obs value, then clear everything and repeat on the next obs-type. Results accumulate in candidate_obs: when you're done, search this for the best obs type for each trial.
     
-        for(anoption in 1:max(stim.df$option)){
-            for(afeature in 1:max(stim.df$feature)){
-                
-                imagined_calcobs.df <- data.frame(); 
+    for(anoption in 1:max(stim.df$option)){
+        for(afeature in 1:max(stim.df$feature)){
+            
+            imagined_calcobs.df <- data.frame(); 
 
-                for(atrial in 1:max(stim.df$trial)){
-                    imagined_calcobs.df <- rbind(imagined_calcobs.df,
-                                                 imagine_calcobs(samples,atrial,anoption,afeature))
-                }
-                postobs_evi <- batch_evi(getsamples(rbind(calcobs.df,imagined_calcobs.df), ordobs.df))
-                imagined_calcobs.df$value <- current_evi$evi-postobs_evi$evi #Evi is expected value of perfect information. So info gained is "how much evi drops"(?)
-                candidate_obs <- rbind(candidate_obs,
-                                       imagined_calcobs.df%>%rename(option1=option)%>%mutate(option2=NA,type="calc")%>%select(type,trial,option1,option2,feature,obs,value)                                       )
+            for(atrial in 1:max(stim.df$trial)){
+                imagined_calcobs.df <- rbind(imagined_calcobs.df,
+                                             imagine_calcobs(samples,atrial,anoption,afeature))
             }
+            postobs_evi <- batch_evi(getsamples(rbind(calcobs.df,imagined_calcobs.df), ordobs.df))
+            imagined_calcobs.df$value <- current_evi$evi-postobs_evi$evi #Evi is expected value of perfect information. So info gained is "how much evi drops"(?)
+            candidate_obs <- rbind(candidate_obs,
+                                   imagined_calcobs.df%>%rename(option1=option)%>%mutate(option2=NA,type="calc")%>%select(type,trial,option1,option2,feature,obs,value)                                       )
         }
+    }
 
     ##All over again but for imagined ordobs.
     for(anoption2 in 2:max(stim.df$option)){
@@ -111,7 +109,7 @@ batch_imagineobs <- function(samples,calcobs.df,ordobs.df){
 
                 for(atrial in 1:max(stim.df$trial)){
                     imagined_ordobs.df <- rbind(imagined_ordobs.df,
-                                                 imagine_ordobs(samples,atrial,anoption1,anoption2,afeature))
+                                                imagine_ordobs(samples,atrial,anoption1,anoption2,afeature))
                 }
                 postobs_evi <- batch_evi(getsamples(calcobs.df, rbind(ordobs.df,imagined_ordobs.df)))
                 imagined_ordobs.df$value <- current_evi$evi-postobs_evi$evi #Evi is expected value of perfect information. So info gained is "how much evi drops"(?)
@@ -120,7 +118,7 @@ batch_imagineobs <- function(samples,calcobs.df,ordobs.df){
             }
         }
     }
- return(candidate_obs)
+    return(candidate_obs)
 }#end batch imagine
 
 getsamples <- function(calcobs.df,ordobs.df){ #casewise dispatch: if calcobs or ordobs or both are 0, the calls are different. Apparently can't just set an array to 0 dimensions and expect it to be ignored. Maybe there's a better workaround than this?
@@ -167,7 +165,7 @@ getsamples <- function(calcobs.df,ordobs.df){ #casewise dispatch: if calcobs or 
                     chains=4)
         return(as.data.frame(extract(fit,permuted=TRUE)))
     }
-    #full (both kinds of obs available)
+                                        #full (both kinds of obs available)
     datalist=list(
         n_features=max(stim.df$feature),
         n_options=max(stim.df$option),
@@ -192,17 +190,45 @@ getsamples <- function(calcobs.df,ordobs.df){ #casewise dispatch: if calcobs or 
 }
 
 ##MAIN
-calcobs.df <- data.frame() #init with no obs
+obs_per_trial <- 5#Every trial gets the same number of obs. Would be really nice to halt trials that hit some criterion, how nasty would it be to retrofit that?
+obs_per_imaginationcycle <- 10 #Kinda expensive, but also not clear if 10 is enough?
+
+calcobs.df <- data.frame() #first run of getsamples with no obs just returns the priors. Must make sure the no-obs .stan files match the full one!
 ordobs.df <- data.frame()
 
-initsamples <- getsamples(calcobs.df,ordobs.df)
 
-candidate_obs <- batch_imagineobs(samples=initsamples,calcobs.df=calcobs.df,ordobs.df=ordobs.df)#recompiles kill your time, but go away after the first run? How does this work really?
+for(rep in 1:obs_per_trial){
+    print(paste("Start of observation round",rep))#derpy progress bar
+    if(exists("samples")){rm(samples);gc();}#This is just pure superstition at this point. Oh well.
+    samples <- getsamples(calcobs.df,ordobs.df)
 
-##todo: select the best observation for each trial and make it. Rinse and repeat. (Would be nice to set a halting criterion and only pursue trials that haven't met it yet? How nasty would it be to retrofit that?)
-##note value in candidate obs refers to evi change, so max value is what you want (I think, check!)
+    if(exists("candidate_obs")){rm(candidate_obs);gc()}#even more superstitious than the samples one, 'cause candidate_obs df is likely quite a bit smaller.
+    candidate_obs <- data.frame()
+    for(imagine in 1:obs_per_imaginationcycle){
+        candidate_obs <- rbind(candidate_obs,batch_imagineobs(samples=samples,calcobs.df=calcobs.df,ordobs.df=ordobs.df))#recompiles kill your speed, but go away after the first run? How does this work really? Something to beware of if ssh-ing into a beefier computer: might need a minibatch warmup run.
+    }
+    ##select the best observation for each trial and make it. Rinse and repeat.
+
+    ##There's a lot of interesting info being thrown away when you reduce to the best obs. Distribution of ests contributing to the best mean, also info about what's going on in all the unchosen observations. Maybe save this stuff somewhere?
+    bestobs <- candidate_obs%>%group_by(trial,type,option1,option2,feature)%>%summarize(mean_value=mean(value))%>%ungroup()%>%group_by(trial)%>%mutate(rmv=rank(-mean_value))%>%ungroup()%>%filter(rmv==1)%>%select(-rmv)%>%as.data.frame#note 'value' in candidate obs refers to evi change, so max value is what you want
+
+    for(i in 1:nrow(bestobs)){
+        if(bestobs$type[i]=="calc"){
+            calcobs.df <- add_calcobs(whichoption=bestobs[i,"option1"],
+                                      whichfeature=bestobs[i,"feature"],
+                                      whichtrial=bestobs[i,"trial"],
+                                      old_calcobs=calcobs.df)
+        }
+        if(bestobs$type[i]=="ord"){
+            ordobs.df <- add_ordobs(whichoption1=bestobs[i,"option1"],
+                                    whichoption2=bestobs[i,"option2"],
+                                    whichfeature=bestobs[i,"feature"],
+                                    whichtrial=bestobs[i,"trial"],
+                                    old_ordobs=ordobs.df)
+        }
+    }#end add an observation to each trial
+}#end for each rep in obs-per-trial
 
 finishtime <- Sys.time()
-
 print("Done in")
-print(finishtime-starttime)
+print(finishtime-starttime) #Time difference of 16.74403 mins: for three trials and 10 imagination cycles.
