@@ -36,4 +36,15 @@ for(atrial in 1:n_trials){
     }
 }
 
+
+widestim.df <- data.frame(#Started off with tall format stim.df, but wide format seems nice for reporting decision trajectories? Maybe one of these is dumb, but also maybe both are fine?
+    trialID = 1:max(stim.df$trial),
+    a1 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==1,feature==1)%>%select(value)%>%as.numeric}),
+    a2 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==1,feature==2)%>%select(value)%>%as.numeric}),
+    b1 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==2,feature==1)%>%select(value)%>%as.numeric}),
+    b2 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==2,feature==2)%>%select(value)%>%as.numeric}),
+    c1 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==3,feature==1)%>%select(value)%>%as.numeric}),
+    c2 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==3,feature==2)%>%select(value)%>%as.numeric})
+)
+
 print("Note stim setup set the seed.")

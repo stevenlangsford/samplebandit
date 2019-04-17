@@ -10,15 +10,6 @@ decision_trajectory.df <- data.frame()
 
 source("stim_setup/context_stimsetup.R") #everything here assumes stim.df exists, is visible in global env. stimsetup also loads libraries.
 if(verbose)print("got stim")
-widestim.df <- data.frame(#Started off with tall format stim.df, but wide format seems nice for reporting decision trajectories? Maybe one of these is dumb, but also maybe both are fine?
-    trialID = 1:max(stim.df$trial),
-    a1 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==1,feature==1)%>%select(value)%>%as.numeric}),
-    a2 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==1,feature==2)%>%select(value)%>%as.numeric}),
-    b1 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==2,feature==1)%>%select(value)%>%as.numeric}),
-    b2 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==2,feature==2)%>%select(value)%>%as.numeric}),
-    c1 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==3,feature==1)%>%select(value)%>%as.numeric}),
-    c2 = sapply(1:max(stim.df$trial),function(i){stim.df%>%filter(trial==i,option==3,feature==2)%>%select(value)%>%as.numeric})
-)
 
 
 if(ploteverything){
