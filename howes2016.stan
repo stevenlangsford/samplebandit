@@ -1,20 +1,12 @@
 functions{
-  real p_lessthan(real x, real coeff, real theta){
-    return(1/(1+exp(coeff*x+theta)));
-  }
-  real p_greaterthan(real x, real coeff, real theta){
-    return(1/(1+exp(-coeff*x+theta)));
-  }
-
-  real myordobs_lpmf(int obs, real mydist, real coeff, real theta){
-    vector[3] probvector;    
-    probvector=[p_lessthan(mydist,coeff,theta)*(1-p_greaterthan(mydist,coeff,theta)),
-		(1-p_lessthan(mydist,coeff,theta))*(1-p_greaterthan(mydist,coeff,theta)),
-		(1-p_lessthan(mydist,coeff,theta))*(p_greaterthan(mydist,coeff,theta))]';
-    probvector=probvector/sum(probvector);
-    return(categorical_lpmf(obs | probvector));
-  }//ordobs
-  
+    real myordobs_lpmf(int obs, real f1, real f2, real tolerance, real noise){
+      return(
+	     categorical_lpmf(obs | [normal_cdf(-tolerance, f1-f2, noise),
+				     normal_cdf(tolerance, f1-f2, noise)-normal_cdf(-tolerance, f1-f2, noise),
+				     1-normal_cdf(tolerance, f1-f2, noise)]')
+	     );
+    }
+    
 }
 data{
   int n_trials;
@@ -29,8 +21,8 @@ data{
   int ordopt2[n_ordobs];
   int ordfeature[n_ordobs];//1 means prob, 2 means payoff.
   int ordobs[n_ordobs];//observations: 1 means a<b, 2 means a==b, 3 means a>b
-  real ordcoeff[n_ppnts,2]; //first entry for prob, second for payout, as indexed by ordfeature.
-  real ordtheta[n_ppnts,2];
+  real ordtolerance[n_ppnts,2]; //first entry for prob, second for payout, as indexed by ordfeature.
+  real ordnoise[n_ppnts,2];
   
   int n_calcobs;
   int calcppntid[n_calcobs];
@@ -62,14 +54,16 @@ model{
   for(i in 1:n_ordobs){
     if(ordfeature[i]==1){
   	ordobs[i]~myordobs(
-  			  prob[ordtrial[i],ordopt1[i]]-prob[ordtrial[i],ordopt2[i]],
-  			  ordcoeff[ord_ppntid[i],1],
-  			  ordtheta[ord_ppntid[i],1]);
+			   prob[ordtrial[i],ordopt1[i]],
+			   prob[ordtrial[i],ordopt2[i]],
+			   ordtolerance[ord_ppntid[i],1],
+			   ordnoise[ord_ppntid[i],1]);
     }else{
   	ordobs[i]~myordobs(
-  			  payout[ordtrial[i],ordopt1[i]]-payout[ordtrial[i],ordopt2[i]],
-  			  ordcoeff[ord_ppntid[i],2],
-  			  ordtheta[ord_ppntid[i],2]);
+			   payout[ordtrial[i],ordopt1[i]],
+			   payout[ordtrial[i],ordopt2[i]],
+			   ordtolerance[ord_ppntid[i],2],
+			   ordnoise[ord_ppntid[i],2]);
     }
   }
   for(i in 1:n_calcobs){

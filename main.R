@@ -23,25 +23,12 @@ rnd_trial <- function(){
          rnd_option())
 }
 
-ordobs <- function(f1, f2, coeff, theta){
-        p_lessthan <- function(mydiff){
-            1 / (1 + exp(coeff * mydiff + theta))
-        }
-        p_greaterthan <- function(mydiff){
-            1 / (1 + exp(-coeff * mydiff + theta))
-        }
-        p10 <- function(mydiff){
-            p_lessthan(mydiff) * (1 - p_greaterthan(mydiff))
-        }
-        p00 <- function(mydiff){
-            (1 - p_lessthan(mydiff)) * (1 - p_greaterthan(mydiff))
-        }
-        p01 <- function(mydiff){
-            (1 - p_lessthan(mydiff)) * (p_greaterthan(mydiff))
-        }
-    #p11 doesn't make much sense... ok to just ignore&renormalize? Odd?
-    ans <- c(p10(f1 - f2), p00(f1 - f2), p01(f1 - f2))
-    return(base::sample(1:3, size = 1, prob = ans / sum(ans)))
+
+ordobs <- function(a, b, tolerance, noise){
+    diff <- rnorm(1, a - b, noise)
+    if (diff < (-tolerance)) return(1);
+    if (abs(diff) < tolerance) return(2);
+    if (diff > tolerance) return(3);
 }
 
 calcobs <- function(anoption, ppntnoise){
@@ -55,16 +42,16 @@ n_ppnts <- 5
 trials <- t(replicate(n_trials, rnd_trial())) #n*3 matrix of rnd_options
 
 ##ppnt params
-ppnt_coeff_prob <- rep(100, n_ppnts)
-ppnt_theta_prob <- rep(1, n_ppnts)
-ppnt_coeff_payout <- rep(2, n_ppnts)
-ppnt_theta_payout <- rep(1, n_ppnts)
+ppnt_tolerance_prob <- rep(.1, n_ppnts)
+ppnt_ordnoise_prob <- rep(.3, n_ppnts)
+ppnt_tolerance_payout <- rep(1, n_ppnts) #check these guessed param vals...
+ppnt_ordnoise_payout <- rep(3, n_ppnts)
 
 ##store together because it's nice to index into these rather than use if
-ppnt_coeff <- matrix(c(ppnt_coeff_prob, ppnt_coeff_payout),
+ppnt_tolerance <- matrix(c(ppnt_tolerance_prob, ppnt_tolerance_payout),
                      ncol = 2,
                      nrow = n_ppnts)
-ppnt_theta <- matrix(c(ppnt_theta_prob, ppnt_theta_payout),
+ppnt_ordnoise <- matrix(c(ppnt_ordnoise_prob, ppnt_ordnoise_payout),
                      ncol = 2,
                      nrow = n_ppnts)
 
@@ -81,8 +68,6 @@ sweep_ordobs <- function(){
             for (afeature in 1:2){
                 for (opt1 in 2:3){
                     for (opt2 in 1:opt1){
-                        
-                        
                         ordobs.df <<- rbind(ordobs.df,
                                             data.frame(
                                                 ppntid = appnt,
@@ -92,8 +77,8 @@ sweep_ordobs <- function(){
                                                 feature = afeature,
                                                 obs = ordobs(trials[[atrial, opt1]][afeature],
                                                              trials[[atrial, opt2]][afeature],
-                                                             ppnt_coeff[appnt, afeature],
-                                                             ppnt_theta[appnt, afeature]))
+                                                             ppnt_tolerance[appnt, afeature],
+                                                             ppnt_ordnoise[appnt, afeature]))
                                         # f2, tolerance, p_err
                                             )
                     }
@@ -136,8 +121,8 @@ datalist <- list(n_trials = n_trials,
                  ordopt2 = ordobs.df$opt2,
                  ordfeature = ordobs.df$feature,
                  ordobs = ordobs.df$obs,
-                 ordcoeff = ppnt_coeff,
-                 ordtheta = ppnt_theta,
+                 ordtolerance = ppnt_tolerance,
+                 ordnoise = ppnt_ordnoise,
 
                  n_calcobs = nrow(calcobs.df),
                  calcppntid = calcobs.df$ppntid,
