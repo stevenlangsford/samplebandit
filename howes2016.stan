@@ -1,15 +1,18 @@
 functions{
     real myordobs_lpmf(int obs, real f1, real f2, real tolerance, real noise){
+      vector[3] ff; //stands for 'fudge-factor-enabler'. :-( All ordobs need to be feasible, even if unexpected. Pure cdf gives regions of infeasibility that are very easy to fall into.
+      ff = [normal_cdf(-tolerance, f1-f2, noise),
+	    normal_cdf(tolerance, f1-f2, noise)-normal_cdf(-tolerance, f1-f2, noise),
+	    1-normal_cdf(tolerance, f1-f2, noise)]';
+       
+
       return(
-	     categorical_lpmf(obs | [normal_cdf(-tolerance, f1-f2, noise),
-				     normal_cdf(tolerance, f1-f2, noise)-normal_cdf(-tolerance, f1-f2, noise),
-				     1-normal_cdf(tolerance, f1-f2, noise)]')
+	     categorical_lpmf(obs | (ff+[0.001,0.001,0.001]')/1.003)//1.003 is the with-fudge total.
 	     );
     }
-    
 }
 data{
-  int n_trials;
+  int n_trials; //a trial is a single presentation, ie a unique stim/ppnt combination with 1 response.
   int n_options;
   int n_features;
   int n_ppnts;
@@ -47,27 +50,28 @@ model{
   for(atrial in 1:n_trials){//priors
     for(anoption in 1:n_options){
       prob[atrial,anoption]~beta(1,1);
-      payout[atrial,anoption]~normal(100,5);//needs to ~match actual stim.
+      payout[atrial,anoption]~normal(20,7);//20,7 matches wedell stim
     }
   }
   
   for(i in 1:n_ordobs){
     if(ordfeature[i]==1){
   	ordobs[i]~myordobs(
-			   prob[ordtrial[i],ordopt1[i]],
-			   prob[ordtrial[i],ordopt2[i]],
-			   ordtolerance[ord_ppntid[i],1],
-			   ordnoise[ord_ppntid[i],1]);
+  			   prob[ordtrial[i],ordopt1[i]],
+  			   prob[ordtrial[i],ordopt2[i]],
+  			   ordtolerance[ord_ppntid[i],1],
+  			   ordnoise[ord_ppntid[i],1]);
     }else{
   	ordobs[i]~myordobs(
-			   payout[ordtrial[i],ordopt1[i]],
-			   payout[ordtrial[i],ordopt2[i]],
-			   ordtolerance[ord_ppntid[i],2],
-			   ordnoise[ord_ppntid[i],2]);
+  			   payout[ordtrial[i],ordopt1[i]],
+  			   payout[ordtrial[i],ordopt2[i]],
+  			   ordtolerance[ord_ppntid[i],2],
+  			   ordnoise[ord_ppntid[i],2]);
     }
   }
+  
   for(i in 1:n_calcobs){
-        calcobs[i]~normal(estval[calctrial[i],calcoption[i]],calcnoise[calcppntid[i]]);
+    calcobs[i]~normal(estval[calctrial[i],calcoption[i]],calcnoise[calcppntid[i]]);
   }
 }
 

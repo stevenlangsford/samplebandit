@@ -12,7 +12,7 @@ functions{
 		(1-p_lessthan(mydist,coeff,theta))*(1-p_greaterthan(mydist,coeff,theta)),
 		(1-p_lessthan(mydist,coeff,theta))*(p_greaterthan(mydist,coeff,theta))]';
     probvector=probvector/sum(probvector);
-    return(categorical_lpmf(obs | probvector));
+    return(categorical_lpmf(obs | (probvector+[.001,.001,.001]')/1.003)); //fudge factor because all ordobs need to be somewhat feasible, zeros are bad.
   }//ordobs
   
 }
@@ -55,7 +55,7 @@ model{
   for(atrial in 1:n_trials){//priors
     for(anoption in 1:n_options){
       prob[atrial,anoption]~beta(1,1);
-      payout[atrial,anoption]~normal(100,5);//needs to ~match actual stim.
+      payout[atrial,anoption]~normal(20,7);//needs to ~match actual stim.
     }
   }
   
