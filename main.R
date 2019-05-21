@@ -10,80 +10,10 @@ theme_set(theme_light())
 rm(list = ls())
 set.seed(1)
 
-##world setup
-rnd_option <- function(){
-#prob-payoff trials that match the howes16 priors.
-    c(rbeta(1, 1, 1),
-      rnorm(1, 100, 5)
-      )
-}
+source("stimsetup.R") #a bunch of functions for generating trials
+#trial format is c(prob, payout)
 
-rnd_trial <- function(){
-    list(rnd_option(),
-         rnd_option(),
-         rnd_option())
-}
-
-rnd_wedell <- function(){
-    ##targetA
-targ_a <- list(
-        a1 = c(.83, 12),
-        a2 = c(.67, 15),
-        a3 = c(.5, 20),
-        a4 = c(.4, 25)
-    )
-    ##targetB
-targ_b <- list(
-        b1 = c(.3, 33),
-        b2 = c(.4, 25),
-        b3 = c(.5, 20),
-        b4 = c(.67, 15)
-)
-    ##range,  frequency,  rangefrequency.
-    decoy <- list(
-        Ra1 = c(.4, 20),
-        Ra2 = c(.5, 18),
-        Ra3 = c(.67, 13),
-        Ra4 = c(.83, 10),
-        Fa1 = c(.35, 25),
-        Fa2 = c(.45, 20),
-        Fa3 = c(.62, 15),
-        Fa4 = c(.78, 12),
-        RFa1 = c(.35, 20),
-        RFa2 = c(.45, 18),
-        RFa3 = c(.62, 13),
-        RFa4 = c(.78, 10),
-        ##range,  frequency,  rangefrequency.
-        Rb1 = c(.25, 33),
-        Rb2 = c(.35, 25),
-        Rb3 = c(.45, 20),
-        Rb4 = c(.62, 15),
-        Fb1 = c(.3, 30),
-        Fb2 = c(.4, 20),
-        Fb3 = c(.5, 18),
-        Fb4 = c(.67, 13),
-        RFb1 = c(.25, 30),
-        RFb2 = c(.35, 20),
-        RFb3 = c(.45, 18),
-        RFb4 = c(.62, 13)
-    )
-
-            candidate <- list(
-    unlist(base::sample(targ_a, 1)),
-    unlist(base::sample(targ_b, 1)),
-    unlist(base::sample(decoy, 1))
-    )
-    while (isTRUE(all.equal(as.numeric(candidate[[1]]), #avoid a==b
-                            as.numeric(candidate[[2]])
-                            ))){
-        candidate <- list(
-            unlist(base::sample(targ_a, 1)),
-            unlist(base::sample(targ_b, 1)),
-            unlist(base::sample(decoy, 1))
-        )
-    }
-    return(candidate)
-}
+starttime <- Sys.time()
 
 ordobs <- function(a, b, tolerance, noise){
     diff <- rnorm(1, a - b, noise)
@@ -97,16 +27,23 @@ calcobs <- function(anoption, ppntnoise){
 }
 
 ##sim setup
-n_stim <- 5
-n_ppnts <- 3
+##Rnd stim setup:
+##n_stim <- 5
+##n_ppnts <- 3
+##stim <- t(replicate(n_stim, rnd_wedell())) #n*3 matrix of rnd_options
 
-stim <- t(replicate(n_stim, rnd_wedell())) #n*3 matrix of rnd_options
+##Systematic stim setup:
+stim <- systematic_stimset(hm_diststeps = 5, hm_deltasteps = 2, max_delta = 3)#ie. 9 stim
+n_stim <- nrow(stim)
+n_ppnts <- 20
+##time guide: 9 stim 10 ppnts ~17 seconds per k-transitions 5.5 min
+##9 stim 20 ppnts ~50 seconds per k-transitions 36 min
 
 ##ppnt params
 ppnt_tolerance_prob <- rep(.1, n_ppnts)
-ppnt_ordnoise_prob <- rep(.15, n_ppnts)
-ppnt_tolerance_payout <- rep(1.5, n_ppnts) #check these param vals?
-ppnt_ordnoise_payout <- rep(2.5, n_ppnts)
+ppnt_ordnoise_prob <- rep(.1, n_ppnts)
+ppnt_tolerance_payout <- rep(1, n_ppnts) #check these param vals?
+ppnt_ordnoise_payout <- rep(1, n_ppnts)
 ppnt_calc_noise <- rep(3, n_ppnts)
 
 ##end setup.
@@ -209,34 +146,28 @@ fit <- stan(file = "howes2016.stan",
 
 samples <- data.frame(extract(fit, permuted = TRUE))
 
-source("vis.R")
+endtime <- Sys.time()
 
-## print(bystim_beliefcloud(1));
-## x11();
-## print(ordobs_calibrationcheck(1))
-     
-## for (i in 1:5){
-##     ggsave(bystim_beliefcloud(i),
-##            file = paste0("plots/beliefs", i, ".png"))
-##     ggsave(stim_choicepattern(i),
-##            file = paste0("plots/choicepattern", i, ".png"))
-##     ggsave(ordobs_calibrationcheck(i) - bystim_beliefcloud(i),
-##            file = paste0("plots/combocheck", astim, ".png"),
-##            width = 10, height = 10)
-##     ggsave(ordobs_calibrationcheck(i),
-##            file = paste0("plots/ordcalibration", i, ".png"))
-##     }
-## for (i in 1:5){
-##     ggsave(bystim_beliefcloud(i),
-##            file = paste0("plots/beliefs", i, ".png"))
-##     ggsave(stim_choicepattern(i),
-##            file = paste0("plots/choicepattern", i, ".png"))
-##     ggsave(ordobs_calibrationcheck(i) - bystim_beliefcloud(i),
-##            file = paste0("plots/combocheck", astim, ".png"),
-##            width = 10, height = 10)
-     print(ordobs_calibrationcheck(1)); x11(); print(bystim_beliefcloud(1))
-##            file = paste0("plots/ordcalibration", i, ".png"))
-##     }
+
+
+source("vis.R")
+saveplots <- TRUE
+showplots <- FALSE
+save.image("testrun.RData")#OPTIONAL
+
+for (i in 1:n_stim){
+    if (saveplots){
+        ggsave(bystim_beliefcloud(i),
+               file = paste0("plots/beliefs", i, ".png"))
+        ggsave(stim_choicepattern(i),
+               file = paste0("plots/choicepattern", i, ".png"))
+        ggsave(ordobs_calibrationcheck(i) - bystim_beliefcloud(i),
+               file = paste0("plots/combocheck", i, ".png"),
+               width = 10, height = 10)
+        ggsave(ordobs_calibrationcheck(i),
+               file = paste0("plots/ordcalibration", i, ".png"))
+    }
+}
 
 
 ##standardize features: tune once

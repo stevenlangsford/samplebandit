@@ -1,0 +1,7 @@
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int_distribution.hpp>
+//Compile with: g++ -o s boostme.cpp
+using namespace std;
+int main(){
+
+}

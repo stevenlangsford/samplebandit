@@ -81,23 +81,36 @@ targ_b <- list(
     return(candidate)
 }
 
-systematic_stimset <- function(hm_stim = 10){
-    targ <- c(.4, 25) #one pair from wedell stim:
+systematic_stimset <- function(hm_diststeps = 5,
+                               hm_deltasteps = 5,
+                               max_dist = 5,
+                               max_delta = 5){
+    ##note 'delta' is in payout, prob adjusts to hit target value.
+    targ <- c(.4, 25) #one arbitrary pair from wedell stim:
     alt <- c(10 / 15, 15)
+    
+    diststeps <- seq(from = 0, to = max_dist, length = hm_diststeps)
+    deltasteps <- seq(from = 0, to = max_delta, length = hm_deltasteps)
 
-    diststeps <- seq(from = 0, to = 3, length = hm_stim)
+    ##Init, to overwrite
     nulltrial <- function(){
         return(list(c(NA, NA), c(NA, NA), c(NA, NA)))
     }
-    stimset <- t(replicate(hm_stim, nulltrial()))#to overwrite. Hmm.
-    for (i in 1:hm_stim){
-        stimset[[i, 1]] <- targ
-        stimset[[i, 2]] <- alt
-        ##decoy is worth 'dist' less than targ: but orientation random.
-        mypayout <- rnorm(1, targ[2], 3)
-        myprob <- (targ[1] * targ[2] - diststeps[i]) / mypayout
 
-        stimset[[i, 3]] <- c(myprob, mypayout)
+    stimset <- t(replicate(hm_diststeps * hm_deltasteps, nulltrial()))
+
+    rowcounter <- 1 #lazy: tracks row over dist/delta combos.
+    for (dist in diststeps){
+        for (delta in deltasteps){
+            stimset[[rowcounter, 1]] <- targ
+            stimset[[rowcounter, 2]] <- alt
+        ##decoy is worth 'dist' less than targ: but orientation random.
+            mypayout <- targ[2] - delta
+            myprob <- (targ[1] * targ[2] - dist) / mypayout
+            stimset[[rowcounter, 3]] <- c(myprob, mypayout)
+
+            rowcounter <- rowcounter + 1
+        }
     }
     return(stimset)
 }
