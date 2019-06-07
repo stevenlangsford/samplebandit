@@ -32,13 +32,14 @@ double ordobs_phi(double x){
 int ordobs(double f1, double f2, double tolerance, double noise){
   double p[3];
   double diff = (f1-f2);
-  //ordobs_phi is standard normal, so shift tolerance boundaries by diff and divide by noise to standardize.
+  //portion of a normal distribution centered at 'diff' with width 'noise' that falls before, between, and after boundaries at +/- tolerance:
+  //(wrangled into standard normal cdf format)
   p[0] = ordobs_phi((-tolerance-diff)/noise);
   p[1] = ordobs_phi((tolerance-diff)/noise)-p[0];
   p[2] = 1-ordobs_phi((tolerance-diff)/noise);
   
   boost::random::discrete_distribution<> dist(p);
-  return dist(gen)+1;
+  return dist(gen)+1; //or symbols[dist(gen)] for some approptiate arr symbols {<,=,>}
 }
 
 

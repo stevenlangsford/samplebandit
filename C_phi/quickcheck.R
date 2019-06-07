@@ -51,3 +51,5 @@ dodge_plot <- ggplot(allsimobs.df,
     guides(fill = FALSE)
 
 print(facet_plot / dodge_plot)
+ggsave(facet_plot, file = "facet_comparison.png", width = 10)
+ggsave(dodge_plot, file = "dodgebars_comparison.png", width = 10)

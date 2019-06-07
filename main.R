@@ -10,11 +10,11 @@ theme_set(theme_light())
 rm(list = ls())
 set.seed(1)
 
-source("stimsetup.R") #a bunch of functions for generating trials
+source("stimsetup.R") #a bunch of functions for generating trials: doesn't actualy create 'stim', that's done here in main, but using the functions from this.
 #trial format is c(prob, payout)
 
 starttime <- Sys.time()
-
+#This is the core theoretical claim: people get information about the options presented to them via these two kinds of observation, then take the Bayes-normative option that maximizes expected return.
 ordobs <- function(a, b, tolerance, noise){
     diff <- rnorm(1, a - b, noise)
     if (diff < (-tolerance)) return(1);
@@ -22,8 +22,8 @@ ordobs <- function(a, b, tolerance, noise){
     if (diff > tolerance) return(3);
 }
 
-calcobs <- function(anoption, ppntnoise){
-    rnorm(1, anoption[1] * anoption[2], ppntnoise)
+calcobs <- function(anoption, noise){
+    rnorm(1, anoption[1] * anoption[2], noise)
 }
 
 ##sim setup
@@ -33,18 +33,49 @@ calcobs <- function(anoption, ppntnoise){
 ##stim <- t(replicate(n_stim, rnd_wedell())) #n*3 matrix of rnd_options
 
 ##Systematic stim setup:
-stim <- systematic_stimset(hm_diststeps = 5, hm_deltasteps = 2, max_delta = 3)#ie. 9 stim
-n_stim <- nrow(stim)
-n_ppnts <- 20
-##time guide: 9 stim 10 ppnts ~17 seconds per k-transitions 5.5 min
-##9 stim 20 ppnts ~50 seconds per k-transitions 36 min
+##stim <- systematic_stimset(hm_diststeps = 6, hm_deltasteps = 2, max_delta = 3)
 
+##cpp comparison stim:
+load("cpp_stim.RData")
+stim <- stim[1:5, ]
+
+n_stim <- nrow(stim)
+n_ppnts <- 20 #too low?
+##time guide for my laptop:
+##9 stim 10 ppnts ~17 seconds per k-transitions 5.5 min
+##5 stim 20 ppnts ~25 seconds per k-transitions 
+##9 stim 20 ppnts ~50 seconds per k-transitions 36 min
+##12 stim 20 ppnts ~53 seconds per k-transitions 2.3 hrs
+##15 stim 20 ppnts ~65 seconds per k-transitions 
 ##ppnt params
-ppnt_tolerance_prob <- rep(.1, n_ppnts)
-ppnt_ordnoise_prob <- rep(.1, n_ppnts)
-ppnt_tolerance_payout <- rep(1, n_ppnts) #check these param vals?
-ppnt_ordnoise_payout <- rep(1, n_ppnts)
-ppnt_calc_noise <- rep(3, n_ppnts)
+##Not at all clear what these params should be.
+##Hopefully there's a range where they reproduce the empirical context effects (attraction, similarity, compromise, some other things)
+##Even more hopefully, they should be allowed to vary a bit across ppnts and reproduce in aggregate the attested relationship between the different effects
+##Attraction is correlated with compromise, similarity is negatively correlated with both of them.
+
+##guess/explore on std normal scale, then invert standardization to put the guess in the scale of your trial features?
+std_guesstol <- .3#Tolerance in feature-sd units.
+std_guessnoise <- .3#Total guess: x1 tolerance width?
+std_guesscalcnoise <- .5#For consistency, calcnoise also in sd(trialvalue) units
+
+myfeaturestats <- featurediststats(trialfn = rnd_wedell) #note trialfn should match actual stim defined above.
+
+ppnt_tolerance_prob <- rep(myfeaturestats$prob["sd"] *
+                           std_guesstol,
+                           n_ppnts)
+ppnt_ordnoise_prob <- rep(myfeaturestats$prob["sd"] *
+                          std_guessnoise,
+                          n_ppnts)
+ppnt_tolerance_payout <- rep(myfeaturestats$payout["sd"] *
+                             std_guesstol,
+                             n_ppnts)
+ppnt_ordnoise_payout <- rep(myfeaturestats$payout["sd"] *
+                            std_guessnoise,
+                            n_ppnts)
+
+ppnt_calc_noise <- rep(std_guesscalcnoise *
+                       myfeaturestats$value["sd"],
+                       n_ppnts)
 
 ##end setup.
 ##wrangle setup into convenient format:
@@ -54,7 +85,6 @@ ppnt_tolerance <- matrix(c(ppnt_tolerance_prob, ppnt_tolerance_payout),
 ppnt_ordnoise <- matrix(c(ppnt_ordnoise_prob, ppnt_ordnoise_payout),
                      ncol = 2,
                      nrow = n_ppnts)
-
 
 trials.df <- data.frame()
 for (astim in 1:n_stim){
@@ -71,10 +101,12 @@ for (astim in 1:n_stim){
 }
 trials.df$trial <- 1:nrow(trials.df)
 
-
-
-###################                                                                                            
+################### 
 ##get sim exp observations: for now, just one of everything for each trial.
+##The goal is to turn this into a sequential sampling story where people are allowed to select which observation they want next and when they have observed enough.
+##Attested empirical effect is that context effects are reduced under time pressure. Also all the cool kids in this space care about response times, the original howes16 account is static, so this is a desirable extension to stay in the game.
+##Anyway anticipating this sequential-sampling extension is why the data are formatted the way they are, with each observation surrounded by a gigantic cloud of index variables indicating where it came from. It's so you can mess around with the ordobs.df and calcobs.df input at will to flexibly include or drop observations for any particular feature/trial/participant.
+
 ordobs.df <- data.frame()
 calcobs.df <- data.frame()
 
@@ -147,13 +179,13 @@ fit <- stan(file = "howes2016.stan",
 samples <- data.frame(extract(fit, permuted = TRUE))
 
 endtime <- Sys.time()
+bettertimer <- proc.time()#better than start vs end?
 
 
-
-source("vis.R")
+source("vis.R") #not just a clean collection of plotting functions as you might expect: does some format wrangling putting stim into stim.df and adding info to trials.df, so can't run without following main.R.
 saveplots <- TRUE
 showplots <- FALSE
-save.image("testrun.RData")#OPTIONAL
+save.image("cpp_comparison.RData")#OPTIONAL
 
 for (i in 1:n_stim){
     if (saveplots){
@@ -168,8 +200,3 @@ for (i in 1:n_stim){
                file = paste0("plots/ordcalibration", i, ".png"))
     }
 }
-
-
-##standardize features: tune once
-##systematic decoy variation, not rnd stim
-##noiseless ordobs?

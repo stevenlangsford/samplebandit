@@ -1,4 +1,30 @@
-##world setup
+##helper fns: not actually for setup, but belong here
+
+##Check the mean and sd of features from some trial-generator
+##Handy to set appropriate ordobs params.
+featurediststats <- function(ntrials = 10000, trialfn = rnd_wedell){
+pile_o_trials <- t(replicate(ntrials, trialfn()))#usual trial gen process
+dim(pile_o_trials) <- ntrials * 3 #flatten matrix to list
+myprobs <- sapply(pile_o_trials, function(trial){
+    trial[1]
+})
+mypayouts <- sapply(pile_o_trials, function(trial){
+    trial[2]
+})
+
+myvalue <- sapply(pile_o_trials, function(trial){
+    trial[1] * trial[2]
+})
+
+ans <- list(prob = c(mean = mean(myprobs), sd = sd(myprobs)),
+            payout = c(mean = mean(mypayouts), sd = sd(mypayouts)),
+            value = c(mean = mean(myvalue), sd = sd(myvalue))
+            )
+return(ans)
+}
+
+
+##world setup fns
 rnd_option <- function(scale="howes16"){
     if (scale == "howes16"){
     return(c(rbeta(1, 1, 1), #these match the priors used in howes16
