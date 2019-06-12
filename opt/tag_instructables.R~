@@ -1,0 +1,148 @@
+library(tidyverse)
+library(patchwork)
+theme_set(theme_light())
+
+set.seed(4)
+rm(list = ls())
+##Basic idea:
+##Only interested in 'instructable' policies
+##ie ones with neat English descriptions
+
+##Reduce trials to 'states' with neat descriptions.
+##Reduce actions on states to a small set with neat descriptions
+
+##Get the value of each action in each state (given an environment)
+
+##Collapse state descriptions as much as possible.
+##target obs using the other feature: max, min, unknown
+##max-or-min-or-unknown == any
+##max-or-min == any known
+
+##Part One: trials -> states
+##Sort trial options into a consistent order by feature-info
+##(doesn't matter how, just to erase option-position)
+##Switch feature values for 'low-mid-high/NA' labels
+##You are now in one of 4^6 states
+
+##Allow custom sort: sort on prob first then payoff, knowns first unknowns last.
+##Turn NA into a string, numerals are '<' strings in alphanumeric order.
+'[.gamble' <- function(x, i){
+    class(x) <- "list"
+    x <- x[i]
+    class(x) <- "gamble"
+    x
+}
+'>.gamble' <- function(a, b){
+    a <- a[[1]]
+    b <- b[[1]]
+    if (is.na(a[1]))a[1] <- "missing"
+    if (is.na(a[2]))a[2] <- "missing"
+    if (is.na(b[1]))b[1] <- "missing"
+    if (is.na(b[2]))b[2] <- "missing"
+
+    if (a[1] == "missing" && b[1] == "missing"){
+        return(a[2] > b[2])
+    }else{
+        return(a[1] > b[1])
+    }
+}
+
+'<.gamble' <- function(a, b){
+    a <- a[[1]]
+    b <- b[[1]]
+
+    if (is.na(a[1]))a[1] <- "missing"
+    if (is.na(a[2]))a[2] <- "missing"
+    if (is.na(b[1]))b[1] <- "missing"
+    if (is.na(b[2]))b[2] <- "missing"
+
+    if (a[1] == "missing" && b[1] == "missing"){
+        return(a[2] < b[2])
+    }else{
+        return(a[1] < b[1])
+    }
+}
+'==.gamble' <- function(a, b){
+    a <- a[[1]]
+    b <- b[[1]]
+    if (is.na(a[1]))a[1] <- "missing"
+    if (is.na(a[2]))a[2] <- "missing"
+    if (is.na(b[1]))b[1] <- "missing"
+    if (is.na(b[2]))b[2] <- "missing"
+
+    return(a[1] == b[1] &&
+           a[2] == b[2])
+}
+
+##Feature values collapse to status-labels
+prob_statelabel <- function(aprob){
+    if (is.na(aprob))return("NA")
+    if (aprob <= 0.4) return("low")
+    if (aprob >= 0.6) return("high")
+    return("med")
+    }
+payoff_statelabel <- function(apay){
+    if (is.na(apay))return("NA")
+    if (apay <= 13) return("low")
+    if (apay >= 27) return("high")
+    return("med")
+}
+
+getstate <- function(atrial){
+    atrial <- sort(atrial) ##erase location, only care about info state
+    paste(sapply(atrial, function(x){
+        prob_statelabel(x[1])
+    }),
+    sapply(atrial, function(x){
+        payoff_statelabel(x[2])
+    }),
+    collapse = ":"
+    )
+}
+
+##Part Two: Actions
+##obs_P/obs_V/stop_choose
+##obs can be: Highest, Lowest, Unknown (in other feature, of course)
+
+make_obs <- function(current_trial, ##Contains all the information
+                     current_state, ##Visible information, with NA masks.
+                     ref_feature = c("prob", "payoff")[1],#can't make demands of the obs feature because it must be NA.
+                     preference = c("max", "min", "NA")[1]
+                     ){
+    if (ref_feature == "prob"){
+        targfeatures <- sapply(current_state, function(x){x[1]})
+        obsfeatures <-  sapply(current_state, function(x){x[2]})
+    }else{
+        targfeatures <- sapply(current_state, function(x){x[2]})
+        obsfeatures <-  sapply(current_state, function(x){x[1]})
+    }
+    
+    matches_preference <- switch(preference,
+                                 "max" = function(x){which(x == max(x, na.rm = TRUE) & is.na(obsfeatures))},
+                                 "min" = function(x){which(x == min(x, na.rm = TRUE) & is.na(obsfeatures))},
+                                 "NA" = function(x){which(is.na(x) & is.na(obsfeatures))}
+                                 )
+    mymatches <- matches_preference(targfeatures)
+    
+    if (length(mymatches) == 0){
+        return(base::sample(1:3, 1))
+    }
+    if (length(mymatches) > 1){
+        return(base::sample(mymatches, 1))
+    }
+    
+    if (ref_feature == "prob"){
+        current_state[[matches_preference(targfeatures)]][1] <-
+            current_trial[[matches_preference(targfeatures)]][1]
+    }else{
+        current_state[[matches_preference(targfeatures)]][2] <-
+            current_trial[[matches_preference(targfeatures)]][2]
+    }
+    return(current_state)#IS THIS WHAT YOU WANT?
+}
+
+
+##MAIN
+bob <- list(c(.1, 10), c(.2, 20), c(NA, 30))
+bill <- list(c(NA, NA), c(NA, NA), c(NA, NA))
+class(bob) <- "gamble"

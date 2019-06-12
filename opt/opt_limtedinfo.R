@@ -7,13 +7,13 @@ rm(list = ls())
 
 ##settable: world params
 ##feature distributions:
-for (mypaysd in seq(from = 1, to = 50, length = 50)){
-    print(paste("progress:", mypaysd, "50"))
+for (mypaysd in 7){
+    print(paste("progress:", mypaysd, "100"))
 rnd_prob <- function(){
     runif(1, 0, 1);
 }
 rnd_payoff <- function(){
-    rnorm(1, 100, mypaysd);
+    rnorm(1, 20, mypaysd);
 }
 ##Expectation if feature unknown:
 blind_prob <- .5 #E(rnd_prob)
@@ -124,19 +124,20 @@ by_info_mask.df <- sim.df %>%
 by_info_group.df <- sim.df %>%
     group_by(info_group) %>%
     summarize(mean_gain = mean(gain))
-perfectscore <- max(by_info_group.df$mean_gain)
+
+#    perfectscore <- 120 #used to set ylim so frames don't jump: must calibrate
 
 ggsave(ggplot(by_info_group.df, aes(x = info_group, y = mean_gain)) +
-       geom_point(size = 5) +
-       ylim(c(0, perfectscore)),
+       geom_point(size = 5), #+
+ #      ylim(c(0, perfectscore)),
        file = paste0("plots/infogroup/", lpad(mypaysd, 3), "byinfogroup.png")
        )
 
 ggsave(ggplot(by_info_mask.df, aes(x = info, y = mean_gain)) +
     geom_point(size = 5) +
     facet_grid(prob_obs~total_obs) +
-    guides(color = FALSE) +
-    ylim(c(0, perfectscore)),
+    guides(color = FALSE), #+
+#    ylim(c(0, perfectscore)),
     file = paste0("plots/infomask/", lpad(mypaysd, 3), "byinfomask.png")
     )
 }#for each paysd
