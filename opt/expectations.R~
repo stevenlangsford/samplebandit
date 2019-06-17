@@ -1,0 +1,138 @@
+library(tidyverse)
+library(patchwork)
+library(hash)
+
+theme_set(theme_light())
+rm(list = ls())
+
+prob_levels <- c("low", "mid", "high")
+problevel_prob <- c(.4, .2, .4)
+problevel_value <- c(.25, .5, .75) #What to sub in if you see this label?
+
+payoff_levels <- c("low", "mid", "high")
+paylevel_prob <- c(.1, .8, .1)
+paylevel_value <- c(13, 20, 27)
+prob_na_expected <- .5
+pay_na_expected <- 20
+value_na_na <- 10
+
+##end setup
+if (length(prob_levels) != length(problevel_prob) ||
+    length(payoff_levels) != length(paylevel_prob) ||
+    sum(problevel_prob) != 1 ||
+    sum(paylevel_prob) != 1)stop("bad setup")
+
+##easy reference
+names(problevel_prob) <- prob_levels
+names(paylevel_prob) <- payoff_levels
+
+##memoize recursive constructor.
+seen_states <- hash()
+
+infostring <- function(p1, v1, p2, v2, p3, v3){
+    paste0(sort(c(paste(p1, v1, sep = "_"),
+                  paste(p2, v2, sep = "_"),
+                  paste(p3, v3, sep = "_"))),
+           collapse = ":"
+           )
+}
+
+infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
+    ##My features in 1,2,3 order
+    myfeatures <- list(c(p1, v1),
+                       c(p2, v2),
+                       c(p3, v3)
+                       )
+    ##My infostate string
+    mystringid <- infostring(p1, v1, p2, v2, p3, v3)
+
+    ##IF mystringid exists in hash, just use the memo version
+    if (!is.null(seen_states[[mystringid]]))return(seen_states[[mystringid]]);
+
+    ##My children on obs1, obs2, obs3 etc
+    reachable_id <- c()
+    reachable_probability <- c()
+
+    ##this is some shocking copy paste. How to collapse it?
+    if (is.na(p1)){
+        for (alevel in prob_levels){
+            reachable_id <- c(reachable_id,
+                              infostate_constructor(
+                                  alevel, p2, p3,
+                                  v1, v2, v3
+                              )$mystringid)
+            reachable_probability <- c(reachable_probability,
+                                       problevel_prob[alevel])
+        }
+    }
+    if (is.na(p2)){
+        for (alevel in prob_levels){
+            reachable_id <- c(reachable_id,
+                              infostate_constructor(
+                                  p1, alevel, p3,
+                                  v1, v2, v3
+                              )$mystringid)
+            reachable_probability <- c(reachable_probability,
+                                       problevel_prob[alevel])
+        }
+    }
+    if (is.na(p3)){
+        for (alevel in prob_levels){
+            reachable_id <- c(reachable_id,
+                              infostate_constructor(
+                                  p1, p2, alevel,
+                                  v1, v2, v3
+                              )$mystringid)
+            reachable_probability <- c(reachable_probability,
+                                       problevel_prob[alevel])
+        }
+    }
+    ##values
+    if (is.na(v1)){
+        for (alevel in payoff_levels){
+            reachable_id <- c(reachable_id,
+                              infostate_constructor(
+                                  p1, p2, p3,
+                                  alevel, v2, v3
+                              )$mystringid)
+            reachable_probability <- c(reachable_probability,
+                                       paylevel_prob[alevel])
+        }
+    }
+    if (is.na(v2)){
+        for (alevel in payoff_levels){
+            reachable_id <- c(reachable_id,
+                              infostate_constructor(
+                                  p1, p2, p3,
+                                  v1, alevel, v3
+                              )$mystringid)
+            reachable_probability <- c(reachable_probability,
+                                       paylevel_prob[alevel])
+        }
+    }
+    if (is.na(v3)){
+        for (alevel in payoff_levels){
+            reachable_id <- c(reachable_id,
+                              infostate_constructor(
+                                  p1, p2, p3,
+                                  v1, v2, alevel
+                              )$mystringid)
+            reachable_probability <- c(reachable_probability,
+                                       paylevel_prob[alevel])
+        }
+    }
+    
+    ##My expected value on choose1, choose2, choose3
+    ##are p,v numbers or coarsegrain category lables? or either? DRAGONS
+
+    ##Done. Return everything you might want to know about this state as a list
+    ##Access by 'canonical name' from seen_states.
+    ret <- list(myfeatures = myfeatures,
+                mystringid = mystringid,
+                mychildren = reachable_id,
+                childprobs = reachable_probability)# a list of all the things.
+    seen_states[[mystringid]] <- ret;
+    return(ret)
+}
+
+infostate_constructor(NA, 10, 0.2, 20, 0.3, 30)
