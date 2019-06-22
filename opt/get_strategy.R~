@@ -1,0 +1,21 @@
+library(tidyverse)
+source("expectations.R")
+
+## obs_candidates <- hash()
+
+## tc <- sapply(seen_states, function(x){
+##     available <- x$available_obs
+##     mybest <- x$bestobs
+##     for (candidate in available){
+##         if (is.null(obs_candidates[[candidate]])){
+##             obs_candidates[[candidate]] <<- list(seen = 0, best = 0)
+##         }
+##         obs_candidates[[candidate]]$seen <<-
+##             obs_candidates[[candidate]]$seen + 1
+
+##         if (candidate == mybest){
+##             obs_candidates[[candidate]]$best <<-
+##                 obs_candidates[[candidate]]$best + 1
+##         }
+##     }
+## })

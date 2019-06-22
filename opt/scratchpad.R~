@@ -1,0 +1,45 @@
+value_withobs <- function(myinfostring, n_obs){
+    if (!is.null(seen_vwobs[[paste0(myinfostring, n_obs)]])){
+        return(seen_vwobs[[paste0(myinfostring, n_obs)]])
+    }
+    if (n_obs > str_count(myinfostring, "NA")){
+        stop(paste(n_obs, "obs on ", myinfostring, "is impossible"))
+    }
+
+    if (n_obs == 0) return(seen_states[[myinfostring]]$value_now)
+
+    actionvalues <- map(seen_states[[myinfostring]]$children, function(achild){
+        if (length(achild) == 0) return(-Inf)
+        ev <- 0
+        for (i in 1:length(achild$state)){
+            ev <- ev +
+                value_withobs(seen_states[[achild$state[i]]]$mystringid,
+                              n_obs - 1) *
+                as.numeric(achild$prob[i])
+        }
+        return(ev)
+    })
+
+    seen_vwobs[[paste0(myinfostring, n_obs)]] <- max(unlist(actionvalues))
+    return(max(unlist(actionvalues)))
+}
+
+
+##So the actual optimal sequence of observations is a tree, right?
+##There are often ties, options that are equally good given the info available.
+##Best way would be to take the optimal tree with the simplest description.
+##But I don't know how to do that.
+##So here's a hack: select an arbitrary one of the optimal options,
+##but do it using this preference ranking order
+##choose the actions that are most often good,
+##if you're lucky that might mean you give the same suggestion consistently
+##Thereby simplifying the instruction set.
+tiebreaker_list <- table(
+    sapply(names(seen_states), function(astate){
+        best_action(astate,
+                    ifelse(
+                        str_count(seen_states[[astate]]$mystringid, "NA") == 0,
+                        0, 1)
+                    )
+    })
+) %>% sort %>% rev %>% names

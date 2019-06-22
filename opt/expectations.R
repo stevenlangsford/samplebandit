@@ -68,6 +68,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
     reachable_id <- c()
     reachable_probability <- c()
     reach_obs <- c()
+    reach_by <- c()
     ##this is some bad copy-paste. How to collapse it?
     if (is.na(p1)){
         for (alevel in prob_levels){
@@ -80,6 +81,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
             reachable_probability <- c(reachable_probability,
                                        problevel_prob[alevel])
             reach_obs <- c(reach_obs, paste("[", p1, "]", v1))
+            reach_by <- c(reach_by, "p1")
             }
         }
     }
@@ -94,6 +96,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
             reachable_probability <- c(reachable_probability,
                                        problevel_prob[alevel])
             reach_obs <- c(reach_obs, paste("[", p2, "]", v2))
+            reach_by <- c(reach_by, "p2")
             }
         }
     }
@@ -108,6 +111,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
             reachable_probability <- c(reachable_probability,
                                        problevel_prob[alevel])
             reach_obs <- c(reach_obs, paste("[", p3, "]", v3))
+            reach_by <- c(reach_by, "p3")
             }
         }
     }
@@ -123,6 +127,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
             reachable_probability <- c(reachable_probability,
                                        paylevel_prob[alevel])
             reach_obs <- c(reach_obs, paste(p1, "[", v1, "]"))
+            reach_by <- c(reach_by, "v1")
             }
         }
     }
@@ -137,6 +142,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
             reachable_probability <- c(reachable_probability,
                                        paylevel_prob[alevel])
             reach_obs <- c(reach_obs, paste(p2, "[", v2, "]"))
+            reach_by <- c(reach_by, "v2")
             }
         }
     }
@@ -151,6 +157,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
             reachable_probability <- c(reachable_probability,
                                        paylevel_prob[alevel])
             reach_obs <- c(reach_obs, paste(p3, "[", v3, "]"))
+            reach_by <- c(reach_by, "v3")
             }
         }
     }
@@ -167,6 +174,7 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
     choose3_value <- ifelse( is.na(p3) && is.na(v3),
                             value_na_na,
                             p3_numeric * v3_numeric)
+    
     myvalue <- max(choose1_value, choose2_value, choose3_value)
 
     bestchoice_index <- which(c(choose1_value,
@@ -179,7 +187,8 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
     mychoice_features <- c(paste(p1, v1),
                            paste(p2, v2),
                            paste(p3, v3))[bestchoice_index]
-    bestobs <- NA
+    all_bestobs <- NA #if there's more than one
+    bestobs <- NA #Sometimes you just want to pick one and do it.
     obs_expectedvalue <- list()
     
     if (str_count(mystringid, "NA") > 0){
@@ -188,12 +197,11 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                                  seen_states[[x]]$myvalue * y
                              }))
 
-
-
     for (anobs in unique(reach_obs)){
         obs_expectedvalue[[anobs]] <- sum(obs_rawvalue[reach_obs == anobs])
     }
 
+    all_bestobs <- which(obs_expectedvalue == max(unlist(obs_expectedvalue)))
     bestobs <- which(obs_expectedvalue == max(unlist(obs_expectedvalue)))
     if (length(bestobs) > 1){
         bestobs <- base::sample(
@@ -202,8 +210,19 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                              1)
         }
     bestobs <- names(obs_expectedvalue)[which.max(obs_expectedvalue)]
+     }
+    
+    ##    if (runif(1, 0, 1)>.98)browser()
+    ##If making more observations doesn't actually help, you should just choose from here.
+    
+    if (sum(obs_expectedvalue > myvalue) == 0){
+        reachable_id <- "make a choice"
+        reachable_probability <- c()
+        bestobs <- "choice"
+        reach_obs <- c()
+        obs_expectedvalue <- c()
     }
-#    if (runif(1, 0, 1)>.98)browser()
+    
     ##Done. Return everything you might want to know about this state as a list
     ##Access mainly by canonical name mystringid in seen_states?
     ret <- list(myfeatures = myfeatures,
@@ -213,8 +232,11 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                 myvalue = myvalue,
                 bestchoice_features = mychoice_features,
                 bestobs_features = bestobs,
-                available_obs = reach_obs,
-                obs_expectedvalue = obs_expectedvalue)
+                alt_bestobs = all_bestobs,
+                available_obs = unique(reach_obs),
+                obs_expectedvalue = obs_expectedvalue,
+                children_reachby <- reach_by
+                )
     seen_states[[mystringid]] <- ret;
     return(ret)
 }
@@ -222,52 +244,23 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
 #populate seen_states with everything
 infostate_constructor(NA, NA, NA, NA, NA, NA)
 
-obs_candidates <- hash()
 
-tc <- sapply(seen_states, function(x){
-    available <- x$available_obs
-    value <- x$obs_expectedvalue
-    mymax <- max(unlist(value))
-    print(available)
-    if (length(available) == 0)return()
-    for (a in available){
-
-        if (is.null(obs_candidates[[a]])){
-            obs_candidates[[a]] <<- list(available = 0, isbest = 0)
-        }
-        obs_candidates[[a]]$available <<- obs_candidates[[a]]$available + 1
-        if (value[a] == mymax){
-            obs_candidates[[a]]$isbest <<- obs_candidates[[a]]$isbest + 1
-        }
-    }
-})
-
-##Not very useful.
-expectation.df <- data.frame()
-seen_candidates <- hash()
-##Not sure why sapply iterates nicely for hash where walk and for don't?
-##dummy var assignment for the sake of side effects seems very sinful.
-tc <- sapply(seen_states, function(x){
-    for (acandidate in x$available_obs){
-
-    }
-    expectation.df <<- rbind(expectation.df,
-                             data.frame(
-                                 id = x$mystringid,
-                                 value = x$myvalue,
-                                 choicefeatures = x$bestchoice_features,
-                                 hm_obs = 6 - str_count(x$mystringid, "NA"),
-                                 bestobs = x$bestobs_features
-                             ))
-})
-## ##true but not very useful:
-## ggplot(expectation.df, aes(x = choicefeatures, y = value)) +
-##     geom_jitter() +
-##     facet_grid(hm_obs~.)
+##Check when choose dominates observe (eg any time you see highprob highpay)
+##Check if some obs can be dropped (eg NA [NA] is best 0% of the time).
 
 
-## ggplot(expectation.df, aes(x = bestobs)) +
-##     geom_bar() +
-##     facet_grid(hm_obs~., scales = "free_y")
-#table(expectation.df$bestobs) #for NA_NA, always observe prob.
-bob <- seen_states[[names(seen_states)[50]]]
+bob <- seen_states[[names(seen_states)[255]]]
+
+##states with more than one best obs.
+## [1] 255
+## [1] 529
+## [1] 595
+## [1] 650
+## [1] 695
+## [1] 731
+## [1] 759
+## [1] 780
+## [1] 795
+## [1] 811
+## [1] 814
+## [1] 815
