@@ -134,15 +134,14 @@ best_action <- function(myinfostring, n_obs){
     goodobs_description <- sapply(names(good_obs), function(targ){
         afeature <- substr(targ, 1, 1)
         anopt <- substr(targ, 2, 2)
-        obs_description <- paste(afeature, ":",
+        obs_description <- paste(afeature,
                                  paste(mystate$myfeatures[paste0("p", anopt)],
                                        mystate$myfeatures[paste0("v", anopt)])
                                  )
         return(obs_description)
     }
     ) %>% unique
-
-    return(paste("observe:", goodobs_description, collapse = " OR "))
+    return(paste(goodobs_description))
 }
 
 infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
@@ -169,6 +168,8 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                 c(children$p1[["prob"]],
                   problevel_prob[which(prob_levels == aproblevel)]
                   )
+            children$p1[["obs_description"]] <-
+                paste("p", p1, v1)
         }
         if (is.na(p2)){
             children$p2[["state"]] <-
@@ -180,6 +181,8 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                 c(children$p2[["prob"]],
                   problevel_prob[which(prob_levels == aproblevel)]
                   )
+            children$p2[["obs_description"]] <-
+                paste("p", p2, v2)
         }
         if (is.na(p3)){
             children$p3[["state"]] <-
@@ -191,9 +194,11 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                 c(children$p3[["prob"]],
                   problevel_prob[which(prob_levels == aproblevel)]
                   )
+            children$p3[["obs_description"]] <-
+                paste("p", p3, v3)
         }
     }#end for each problevel
-    
+
     for (apaylevel in payoff_levels){
         if (is.na(v1)){
             children$v1[["state"]] <-
@@ -205,6 +210,8 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                 c(children$v1[["prob"]],
                   paylevel_prob[which(payoff_levels == apaylevel)]
                   )
+            children$v1[["obs_description"]] <-
+                paste("v", p1, v1)
         }
         if (is.na(v2)){
             children$v2[["state"]] <-
@@ -216,6 +223,8 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                 c(children$v2[["prob"]],
                   paylevel_prob[which(payoff_levels == apaylevel)]
                   )
+            children$v2[["obs_description"]] <-
+                paste("v", p2, v2)
         }
         if (is.na(v3)){
             children$v3[["state"]] <-
@@ -227,9 +236,11 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                 c(children$v3[["prob"]],
                   paylevel_prob[which(payoff_levels == apaylevel)]
                   )
+            children$v3[["obs_description"]] <-
+                paste("v", p3, v3)
         }
     }
-    
+
     value_now <- max(c(option_expectedvalue(p1, v1), #choose1
                        option_expectedvalue(p2, v2), #choose2,
                        option_expectedvalue(p3, v3)  #choose3
@@ -252,7 +263,26 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
 
 init <- infostate_constructor(NA, NA, NA, NA, NA, NA)
 
-##create the table goldenline.df(state=c(),action = c())
-best_action(init$mystringid, n_obs = 1)
+opt_only <- hash()
+populate_optonly <- function(infostate, n_obs){
+    mybest <- best_action(infostate, n_obs)
+    if (!is.null(opt_only[[infostate]]))return()
 
-## "highprob_highpay:highprob_highpay:highprob_highpay"
+    for (x in seen_states[[infostate]]$children){
+        if (length(x) == 0) next #observed features have children 'list()'
+        if (x$obs_description %in% mybest){#mybest might have length > 1
+            for (astate in x$state){
+                populate_optonly(astate, n_obs - 1)
+            }
+        }
+    }
+    opt_only[[infostate]] <- mybest
+}
+
+##populate_optonly(init$mystringid, 1)
+
+##for n_obs = 6, all actions have equal value
+##But opt_only still has fewer states than seen_states
+##only because opt stops exploring when no improvement is possible
+##ie anything that includes [high_prob high_payoff] halts and chooses that.
+##so the lines with more than one high-high don't get fully explored.

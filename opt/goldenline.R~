@@ -4,7 +4,7 @@ library(hash)
 
 library(basetheme) ##trying it out.
 basetheme("clean")
-#theme_set(theme_light())
+                                        #theme_set(theme_light())
 rm(list = ls())
 
 prob_levels <- c("lowprob", "midprob", "highprob")
@@ -38,10 +38,10 @@ option_expectedvalue <- function(myproblevel, mypayofflevel){
            prob_na_expected,
            problevel_value[which(prob_levels == myproblevel)]
            ) *
-    ifelse(is.na(mypayofflevel),
-           pay_na_expected,
-           paylevel_value[which(payoff_levels == mypayofflevel)]
-           )
+        ifelse(is.na(mypayofflevel),
+               pay_na_expected,
+               paylevel_value[which(payoff_levels == mypayofflevel)]
+               )
 }
 
 ##erase position info by id-ing everything under a canonical sorted order.
@@ -61,7 +61,7 @@ value_withobs <- function(myinfostring, n_obs){
     if (n_obs > str_count(myinfostring, "NA")){
         stop(paste(n_obs, "obs on ", myinfostring, "is impossible"))
     }
-    
+
     if (n_obs == 0) return(seen_states[[myinfostring]]$value_now)
 
     actionvalues <- map(seen_states[[myinfostring]]$children, function(achild){
@@ -80,18 +80,83 @@ value_withobs <- function(myinfostring, n_obs){
     return(max(unlist(actionvalues)))
 }
 
+best_action <- function(myinfostring, n_obs){
+
+    mystate <- seen_states[[myinfostring]]
+
+    choicevalues <- c(
+        option_expectedvalue(mystate$myfeatures$p1, mystate$myfeatures$v1),
+        option_expectedvalue(mystate$myfeatures$p2, mystate$myfeatures$v2),
+        option_expectedvalue(mystate$myfeatures$p3, mystate$myfeatures$v3)
+    )
+    choicedescription <- c(
+        paste(mystate$myfeatures$p1, mystate$myfeatures$v1),
+        paste(mystate$myfeatures$p2, mystate$myfeatures$v2),
+        paste(mystate$myfeatures$p3, mystate$myfeatures$v3)
+    )
+
+    goodchoices <- choicedescription[
+        which(choicevalues == max(choicevalues))
+    ]
+
+    if (n_obs == 0){
+        return(paste("choose:", paste(unique(goodchoices), collapse = " OR ")))
+    }#if no more obs left
+
+    obsvalues <- map(mystate$children, function(achild){
+        if (length(achild) == 0) return(-Inf)
+        ev <- 0
+        for (i in 1:length(achild$state)){
+            ev <- ev +
+                value_withobs(seen_states[[achild$state[i]]]$mystringid,
+                              n_obs - 1) *
+                as.numeric(achild$prob[i])
+            ##without signif pruning you get some bad "equal not ==" failures
+            ##from e-15 rounding diffs
+        }
+        return(signif(ev,6))
+    }
+    ) %>% unlist
+
+    if (max(obsvalues) == -Inf){
+        warning(paste("best_action(",
+                      myinfostring, n_obs,
+                      ") hit nothing-observable before n_obs ran out."))
+        return(paste("choose:", paste(unique(goodchoices), collapse = " OR ")))
+    }
+
+    if (max(obsvalues) <= mystate$value_now){
+        return(paste("choose:", paste(unique(goodchoices), collapse = " OR ")))
+    }
+
+    good_obs <- which(unlist(obsvalues) == max(unlist(obsvalues)))
+
+    goodobs_description <- sapply(names(good_obs), function(targ){
+        afeature <- substr(targ, 1, 1)
+        anopt <- substr(targ, 2, 2)
+        obs_description <- paste(afeature, ":",
+                                 paste(mystate$myfeatures[paste0("p", anopt)],
+                                       mystate$myfeatures[paste0("v", anopt)])
+                                 )
+        return(obs_description)
+    }
+    ) %>% unique
+
+    return(paste("observe:", goodobs_description, collapse = " OR "))
+}
+
 infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
     mystringid <- infostring(p1, v1, p2, v2, p3, v3)
     if (!is.null(seen_states[[mystringid]]))return(seen_states[[mystringid]])
-    
+
     children <- list(
-                     p1 = list(),
-                     p2 = list(),
-                     p3 = list(),
-                     v1 = list(),
-                     v2 = list(),
-                     v3 = list()
-                     )
+        p1 = list(),
+        p2 = list(),
+        p3 = list(),
+        v1 = list(),
+        v2 = list(),
+        v3 = list()
+    )
 
     for (aproblevel in prob_levels){
         if (is.na(p1)){
@@ -171,6 +236,12 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
                        ))
 
     ret <- list(
+        myfeatures = list(p1 = p1,
+                          p2 = p2,
+                          p3 = p3,
+                          v1 = v1,
+                          v2 = v2,
+                          v3 = v3),
         mystringid = mystringid,
         children = children,
         value_now = value_now
@@ -180,3 +251,8 @@ infostate_constructor <- function(p1, p2, p3, v1, v2, v3){
 }
 
 init <- infostate_constructor(NA, NA, NA, NA, NA, NA)
+
+##create the table goldenline.df(state=c(),action = c())
+best_action(init$mystringid, n_obs = 1)
+
+## "highprob_highpay:highprob_highpay:highprob_highpay"
