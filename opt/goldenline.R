@@ -7,6 +7,8 @@ basetheme("clean")
                                         #theme_set(theme_light())
 rm(list = ls())
 
+##Order is important (low->high)
+##Keep the 'prob' and 'pay' flagsm they're used later in 'get_strategy'.
 prob_levels <- c("lowprob", "midprob", "highprob")
 problevel_prob <- c(.4, .2, .4)
 problevel_value <- c(.25, .5, .75) #What to sub in if you see this label
@@ -265,7 +267,7 @@ init <- infostate_constructor(NA, NA, NA, NA, NA, NA)
 
 opt_only <- hash()
 populate_optonly <- function(infostate, n_obs){
-    mybest <- best_action(infostate, n_obs)
+    mybest <- best_action(infostate, n_obs)[1]#new: TIES BROKEN. Having one branch makes it easier to process the get-strategy-descriptions later.
     if (!is.null(opt_only[[infostate]]))return()
 
     for (x in seen_states[[infostate]]$children){
