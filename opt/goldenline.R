@@ -4,14 +4,16 @@ library(hash)
 
 library(basetheme) ##trying it out.
 basetheme("clean")
-                                        #theme_set(theme_light())
+##theme_set(theme_light())
 rm(list = ls())
 
 ##Order is important (low->high)
 ##Keep the 'prob' and 'pay' flagsm they're used later in 'get_strategy'.
+
+##Original three-level split:
 prob_levels <- c("lowprob", "midprob", "highprob")
 problevel_prob <- c(.4, .2, .4)
-problevel_value <- c(.25, .5, .75) #What to sub in if you see this label
+problevel_value <- c(.25, .5, .75)
 
 payoff_levels <- c("lowpay", "midpay", "highpay")
 paylevel_prob <- c(.1, .8, .1)
@@ -19,6 +21,42 @@ paylevel_value <- c(13, 20, 27)
 prob_na_expected <- .5
 pay_na_expected <- 20
 value_na_na <- 10
+
+##n-level split (best if howfine>=5)
+## howfine <- 5
+## ##uniform(0,1) prob
+## prob_levels <- paste0("prob", 1:howfine)
+## problevel_prob <- rep(1 / howfine, howfine)
+## problevel_value <- seq(from = .01, to = .99, length = howfine)
+
+## ##Normal payoff: N(mupay, sigmapay)
+## ##Note even spacing gives bad breakpoints if howfine < 5
+## mupay <- 20
+## sigmapay <- 7 #wedell-like
+
+## payoff_levels <- paste0("pay", 1:howfine)
+## paylevel_pnorm <- sapply(
+##     seq(from = mupay - (2 * sigmapay),
+##         to = mupay + (2 * sigmapay),
+##         length = howfine + 1
+##         ),
+##     pnorm, mupay, sigmapay)
+## paylevel_prob <- c()
+## for (i in 2:length(paylevel_pnorm)){
+##     paylevel_prob <- c(paylevel_prob,
+##                        paylevel_pnorm[i] - paylevel_pnorm[i - 1])
+## }
+## paylevel_prob <- paylevel_prob / sum(paylevel_prob)
+
+## paylevel_value <- seq(from = mupay - (2 * sigmapay),
+##         to = mupay + (2 * sigmapay),
+##         length = howfine + 1
+##         )[-i]
+
+## prob_na_expected <- .5
+## pay_na_expected <- mupay
+## value_na_na <- mupay * 0.5
+
 
 ##end setup
 if (length(prob_levels) != length(problevel_prob) ||

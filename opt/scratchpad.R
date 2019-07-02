@@ -1,156 +1,109 @@
-##assuming instruction from best_action()
-opttable.df <- data.frame(state = c(), instruction = c())
+##params
+p_instructions_done <- .3
+p_condition_done <- .8
 
-build_opttable <- function(infostate, n_obs){
-    if (infostate %in% opttable.df$state){
-        stop(paste(infostate, n_obs, "double dipping error?"))
-    }
-    
-    instruction <-  best_action(infostate, n_obs)
-    
-    opttable.df <<- rbind(opttable.df, data.frame(
-                                           state = infostate,
-                                           action = instruction
-                                       )
-                          )
-    if (str_count(instruction, "choose") > 0){
-        print(paste("out: ", infostate))
-        return() #No children if your action is choice not obs.
-    }
-    for (candidate_action in
-         strsplit(instruction, "observe: ")[[1]] %>% .[sapply(., function(x){
-             nchar(x) > 0
-         }
-         )]){
-        ##Software gods hate this kind of thing. Do penance.
 
-        tomatch <- strsplit(candidate_action, " : ")[[1]]
-        mystate <- seen_states[[infostate]]
+value_of_opt <- function(infostate, n_obs){
+    if (n_obs == 0) return(seen_states[[infostate]]$value_now)
+    myaction <- best_action(infostate, n_obs)[1] #tiebreakers are free here.
 
-        ##TRUE if you want to observe here:
-        can_observe <- paste0(tomatch[1], (1:3)[c(
-                                              paste(mystate$myfeatures["p1"], mystate$myfeatures["v1"]) == tomatch[2],
-                                              paste(mystate$myfeatures["p2"], mystate$myfeatures["v2"]) == tomatch[2],
-                                              paste(mystate$myfeatures["p3"], mystate$myfeatures["v3"]) == tomatch[2]
-                                          )])
+    mystate <- seen_states[[infostate]]
+    myvalue <- 0 #stores prob weighted sum of values reachable by opt actions.
 
-        children <- c()
-        ##the feature you want to observe is in tomatch[1]
-        if (tomatch[1] == "p"){
-            for (alevel in prob_levels){
-                for (targfeature in can_observe){
-                    children <- c(children,
-                                  switch(targfeature,
-                                         "p1" = infostate_constructor(alevel,
-                                                                      mystate$myfeatures["p2"],
-                                                                      mystate$myfeatures["p3"],
-                                                                      mystate$myfeatures["v1"],
-                                                                      mystate$myfeatures["v2"],
-                                                                      mystate$myfeatures["v3"])$mystringid,
-                                         "p2" = infostate_constructor(mystate$myfeatures["p1"],
-                                                                      alevel,
-                                                                      mystate$myfeatures["p3"],
-                                                                      mystate$myfeatures["v1"],
-                                                                      mystate$myfeatures["v2"],
-                                                                      mystate$myfeatures["v3"])$mystringid,
-                                         "p3" = infostate_constructor(mystate$myfeatures["p1"],
-                                                                      mystate$myfeatures["p2"],
-                                                                      alevel,
-                                                                      mystate$myfeatures["v1"],
-                                                                      mystate$myfeatures["v2"],
-                                                                      mystate$myfeatures["v3"])$mystringid
-                                         )#end switch. Might be the ugliest code you've ever.
-                                  )
-                }#targfeature
-            }#problevels
-        }else{ #ie. tomatch = 'v'
-            for (alevel in payoff_levels){
-                for (targfeature in can_observe){
-                    children <- c(children,
-                                  switch(targfeature,
-                                         "v1" = infostate_constructor(mystate$myfeatures["p1"],
-                                                                      mystate$myfeatures["p2"],
-                                                                      mystate$myfeatures["p3"],
-                                                                      alevel,
-                                                                      mystate$myfeatures["v2"],
-                                                                      mystate$myfeatures["v3"])$mystringid,
-                                         "v2" = infostate_constructor(mystate$myfeatures["p1"],
-                                                                      mystate$myfeatures["p2"],
-                                                                      mystate$myfeatures["p3"],
-                                                                      mystate$myfeatures["v1"],
-                                                                      alevel,
-                                                                      mystate$myfeatures["v3"])$mystringid,
-                                         "v3" = infostate_constructor(mystate$myfeatures["p1"],
-                                                                      mystate$myfeatures["p2"],
-                                                                      mystate$myfeatures["p3"],
-                                                                      mystate$myfeatures["v1"],
-                                                                      mystate$myfeatures["v2"],
-                                                                      alevel)$mystringid
-                                         )#end switch. Might be the ugliest code you've ever.
-                                  )
-                }#targfeature
-            }#paylevels
-        }#tomatch is v
-
-        for (achild in unique(children)){
-            if (n_obs > 0){
-                if (!(achild %in% opttable.df$state)){
-                    build_opttable(achild, n_obs - 1)
-                }
+    for (achild in 1:length(mystate$children)){
+        if (length(mystate$children[[achild]]) == 0) next #skip known features
+        if (mystate$children[[achild]]$obs_description == myaction){
+            for (reachable in 1:length(mystate$children[[achild]]$state)){
+                myvalue <- myvalue +
+                    (value_of_opt(mystate$children[[achild]]$state[reachable],
+                                 n_obs - 1) *
+                    mystate$children[[achild]]$prob[reachable])
             }
-        }#end for each unique child
-        browser()
-        return()
+            ## print(myvalue)
+            ## print(infostate)
+            ## print("***")
+            break #identical actions likely to exist: can only take one.
+        }#if observing achild here matches best action
+    }#for each child
+    return(myvalue)
+}#value of opt
+
+
+
+
+##setup fns
+possible_actions <- c()
+for (anaction in action_target){
+    if (str_count(anaction, "_NA") > 0) {
+        possible_actions <- c(possible_actions,
+                              paste(anaction, "observe-payoff")
+                              )
     }
-}
-
-opttable.df <- data.frame(state = c(), action = c())
-build_opttable("NA_NA:NA_NA:NA_NA", 5)
-View(opttable.df)
-
-####################################################################################################
-value_withobs <- function(myinfostring, n_obs){
-    if (!is.null(seen_vwobs[[paste0(myinfostring, n_obs)]])){
-        return(seen_vwobs[[paste0(myinfostring, n_obs)]])
-    }
-    if (n_obs > str_count(myinfostring, "NA")){
-        stop(paste(n_obs, "obs on ", myinfostring, "is impossible"))
-    }
-
-    if (n_obs == 0) return(seen_states[[myinfostring]]$value_now)
-
-    actionvalues <- map(seen_states[[myinfostring]]$children, function(achild){
-        if (length(achild) == 0) return(-Inf)
-        ev <- 0
-        for (i in 1:length(achild$state)){
-            ev <- ev +
-                value_withobs(seen_states[[achild$state[i]]]$mystringid,
-                              n_obs - 1) *
-                as.numeric(achild$prob[i])
+        if (str_count(anaction, "NA_") > 0) {
+        possible_actions <- c(possible_actions,
+                              paste(anaction, "observe-prob")
+                              )
         }
-        return(ev)
-    })
-
-    seen_vwobs[[paste0(myinfostring, n_obs)]] <- max(unlist(actionvalues))
-    return(max(unlist(actionvalues)))
+    possible_actions <- c(possible_actions,
+                          paste(anaction, "choose")
+                          )
+}
+action <- function(){
+    base::sample(possible_actions,1)
+}
+conditions <- c()
+for (acount in 0:3){
+    for (acomparison in c("<", "==", ">")){
+        for (atarget in action_target){
+            conditions <- c(conditions, paste0("str_count(infostate,'",
+                                               atarget, "')",
+                                               acomparison,
+                                               acount))
+        }
+    }
 }
 
+condition <- function(){
+    if (runif(1, 0, 1) < p_instructions_done){
+        return(base::sample(conditions, 1))
+    }
 
-##So the actual optimal sequence of observations is a tree, right?
-##There are often ties, options that are equally good given the info available.
-##Best way would be to take the optimal tree with the simplest description.
-##But I don't know how to do that.
-##So here's a hack: select an arbitrary one of the optimal options,
-##but do it using this preference ranking order
-##choose the actions that are most often good,
-##if you're lucky that might mean you give the same suggestion consistently
-##Thereby simplifying the instruction set.
-tiebreaker_list <- table(
-    sapply(names(seen_states), function(astate){
-        best_action(astate,
-                    ifelse(
-                        str_count(seen_states[[astate]]$mystringid, "NA") == 0,
-                        0, 1)
-                    )
+    return(paste0(base::sample(conditions, 1),
+                  base::sample(c("&&","||"), 1),
+                  condition()
+                  )
+           )
+}
+
+instructionset <- function(){
+    if (runif(1, 0, 1) < p_instructions_done){
+        return("done")
+    }
+
+    return(list(c(condition(), action()), instructionset()))
+}
+
+#apply_action <- function(infostate,anaction){
+
+mystate <- seen_states[[names(seen_states)[505]]]
+anaction <- strsplit(anaction, " ")[[1]]
+
+opt1 <- paste(mystate$myfeatures$p1, mystate$myfeatures$v1, sep = "_")
+opt2 <- paste(mystate$myfeatures$p2, mystate$myfeatures$v2, sep = "_")
+opt3 <- paste(mystate$myfeatures$p3, mystate$myfeatures$v3, sep = "_")
+
+opt_matches <- sapply(c(opt1, opt2, opt3), function(opt){
+    str_count(opt, anaction) > 0
     })
-) %>% sort %>% rev %>% names
+
+
+rnd_order <- base::sample(1:3, 3)
+for (i in rnd_order){
+    if (opt_matches[i]){
+        #DO THE ACTION
+    }
+}
+#}
+
+
+bob <- instructionset()

@@ -1,0 +1,107 @@
+library(tidyverse)
+source("goldenline.R")
+rm(list = setdiff(ls(), c("seen_states",
+                          "payoff_levels",
+                          "prob_levels",
+                          "opt_only",
+                          "populate_optonly")))
+init <- seen_states[["NA_NA:NA_NA:NA_NA"]]
+
+
+##an instruction set is a list of rules
+##a rule is of the form "if condition, select a target (pool), take an action
+##if no matches, take an random action.
+
+
+##For all the moving parts (actions, conditions, target selection) list all.
+##Then, have a bunch of 'sample' getters to build random instruction sets.
+##In theory, could also exhaustively loop over all combos. But why bother?
+
+actions <- c("observe probability", "observe payoff", "choose")
+
+action_target <- c()
+for (problevel in c(prob_levels, "NA", "")){
+    for (payofflevel in c(payoff_levels, "NA", "")){
+        action_target <- c(action_target,
+                     paste(problevel,
+                           payofflevel,
+                           sep = "_")
+                     )
+    }
+}
+
+possible_actions <- c()
+for (anaction in action_target){
+    if (str_count(anaction, "_NA") > 0) {
+        possible_actions <- c(possible_actions,
+                              paste(anaction, "observe-payoff")
+                              )
+    }
+        if (str_count(anaction, "NA_") > 0) {
+        possible_actions <- c(possible_actions,
+                              paste(anaction, "observe-prob")
+                              )
+        }
+    possible_actions <- c(possible_actions,
+                          paste(anaction, "choose")
+                          )
+}
+
+conditions <- c()
+for (acount in 0:3){
+    for (acomparison in c("<", "==", ">")){
+        for (atarget in action_target){
+            conditions <- c(conditions, paste0("str_count(infostate,'",
+                                               atarget, "')",
+                                               acomparison,
+                                               acount))
+        }
+    }
+}
+
+condition_concat <- c("&&", "||")
+
+##End lists. Begin 'build-an-instruction-set'
+get_action <- function(){
+     base::sample(possible_actions, 1)
+}
+
+get_conditionconcat <- function(){
+    base::sample(condition_concat, 1)
+}
+
+get_condition <- function(mydepth){
+    mycondition <- base::sample(conditions, 1)
+    if (mydepth == 0)return(mycondition)
+
+    for (i in 1:mydepth){
+        mycondition <- paste(mycondition,
+                             get_conditionconcat(),
+                             base::sample(conditions, 1))
+    }
+    return(mycondition)
+}
+
+get_rule <- function(cond_depth){
+    paste0("if(", get_condition(cond_depth),"){apply_action(infostate,'",
+           get_action(), "')}")
+}
+
+get_instructionset <- function(depth){
+    depthprobs <- c(0, 0, 0, 1, 1, 2) #some bias towards shorter conditions
+    sapply(sample(depthprobs, depth, replace = TRUE), get_rule)
+}
+
+apply_action <- function(infostate, action){
+
+    todo <- strsplit(get_action()," |_")
+    mystate <- 
+    paste(infostate, "apply: ", action)
+}
+##if condition trigger then get target pool, take action.
+##What is the expected value of this rule set?
+
+
+infostate <- init$mystringid
+bob <- get_instructionset(2)
+eval(parse(text=bob[1]))

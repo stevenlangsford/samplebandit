@@ -9,7 +9,7 @@ source("goldenline.R")#contains rm(list=ls())
 
 
 ##setup
-obs_budget <- 4
+obs_budget <- 4 #4 good, 5 bad examples
 populate_optonly(init$mystringid, obs_budget)#2nd arg is obseration budget
 
 instruction_list <- list()

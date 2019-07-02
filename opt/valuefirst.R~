@@ -1,0 +1,8 @@
+source("goldenline.R")
+rm(list = setdiff(ls(), c("seen_states",
+                          "payoff_levels",
+                          "prob_levels",
+                          "opt_only",
+                          "populate_optonly")))
+init <- seen_states[["NA_NA:NA_NA:NA_NA"]]
+library(tidyverse)
