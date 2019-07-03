@@ -1,0 +1,63 @@
+library(tidyverse)
+theme_set(theme_light())
+##setup params
+
+##setup helpers
+source("goldenline.R")
+init <- seen_states[["NA_NA:NA_NA:NA_NA"]]
+
+##value-in-expectation-getter template
+## value_rnd_memo <- hash()
+## value_rnd <- function(infostate, n_obs){
+##     if (!is.null(value_rnd_memo[[paste(infostate, n_obs)]])){
+##         return(value_rnd_memo[[paste(infostate, n_obs)]])
+##     }
+##     mystate <- seen_states[[infostate]]
+##     if (n_obs == 0){
+##         value_rnd_memo[[paste(infostate, n_obs)]] <- mystate$value_now
+##         return(as.numeric(mystate$value_now))
+##     }
+    
+##     possible_obs <- str_count(infostate, "NA")
+##     my_value <- 0
+##     for (childindex in 1:length(mystate$children)){
+##         if (length(mystate$children[[childindex]]) == 0)next; #known feature
+##         for (stateindex in 1:length(mystate$children[[childindex]]$state)){
+##             my_value <- my_value +
+##                 (1 / possible_obs) * #chance taking this path (with rnd choice)
+##                 value_rnd(mystate$children[[childindex]]$state[stateindex],
+##                           n_obs - 1) *
+##                 mystate$children[[childindex]]$prob[stateindex]
+##         }
+##     }
+##     value_rnd_memo[[paste(infostate, n_obs)]] <- my_value
+##     return(as.numeric(my_value))
+## }#end value_rnd
+
+
+value_probfirst_memo <- hash()
+value_rnd <- function(infostate, n_obs){
+    if (!is.null(value_rnd_memo[[paste(infostate, n_obs)]])){
+        return(value_rnd_memo[[paste(infostate, n_obs)]])
+    }
+    mystate <- seen_states[[infostate]]
+    if (n_obs == 0){
+        value_rnd_memo[[paste(infostate, n_obs)]] <- mystate$value_now
+        return(as.numeric(mystate$value_now))
+    }
+    
+    possible_obs <- str_count(infostate, "NA")
+    my_value <- 0
+    for (childindex in 1:length(mystate$children)){
+        if (length(mystate$children[[childindex]]) == 0)next; #known feature
+        for (stateindex in 1:length(mystate$children[[childindex]]$state)){
+            my_value <- my_value +
+                (1 / possible_obs) * #chance taking this path (with rnd choice)
+                value_rnd(mystate$children[[childindex]]$state[stateindex],
+                          n_obs - 1) *
+                mystate$children[[childindex]]$prob[stateindex]
+        }
+    }
+    value_rnd_memo[[paste(infostate, n_obs)]] <- my_value
+    return(as.numeric(my_value))
+}#end value_rnd
