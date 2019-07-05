@@ -10,17 +10,21 @@ rm(list = ls())
 ##Order is important (low->high)
 ##Keep the 'prob' and 'pay' flagsm they're used later in 'get_strategy'.
 
-##Original three-level split:
-prob_levels <- c("lowprob", "midprob", "highprob")
-problevel_prob <- c(.4, .2, .4)
-problevel_value <- c(.25, .5, .75)
+##"Ecological" environment following Chater 2006 (sort of)
+source("ecoworld.R")
 
-payoff_levels <- c("lowpay", "midpay", "highpay")
-paylevel_prob <- c(.1, .8, .1)
-paylevel_value <- c(13, 20, 27)
-prob_na_expected <- .5
-pay_na_expected <- 20
-value_na_na <- 10
+##Original three-level split:
+## prob_levels <- c("lowprob", "midprob", "highprob")
+## problevel_prob <- c(.4, .2, .4)
+## problevel_value <- c(.25, .5, .75)
+
+## payoff_levels <- c("lowpay", "midpay", "highpay")
+## paylevel_prob <- c(.1, .8, .1)
+## paylevel_value <- c(13, 20, 27)
+## prob_na_expected <- .5
+## pay_na_expected <- 20
+## value_na_na <- 10
+
 
 ##n-level split (best if howfine>=5)
 ## howfine <- 5
